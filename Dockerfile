@@ -1,5 +1,5 @@
 # Use a Node.js 18 image as the base
-FROM node:18-slim
+FROM node:18
 
 # 1. INSTALL OFFICIAL GOOGLE CHROME
 # This section adds the Google Chrome repository and installs it directly
