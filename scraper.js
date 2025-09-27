@@ -23,7 +23,7 @@ async function scrapeChapterImages(chapterUrl) {
   try {
     console.log(`Launching browser to fetch images from ${chapterUrl}...`);
     browser = await puppeteer.launch({
-      executablePath: '/usr/bin/google-chrome-stable',
+      executablePath: '/usr/bin/chromium',
       headless: "new",
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
     });
