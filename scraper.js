@@ -1,131 +1,177 @@
-// scraper.js
-
 const axios = require("axios");
 const cheerio = require("cheerio");
-// <-- ADD THIS
 const puppeteer = require('puppeteer-extra'); 
-
-// 2. Add the Stealth plugin
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
-// ... (Your scrapeSeriesPage function can stay the same) ...
 
-// In scraper.js
-// ... requires at the top ...
-
-// In scraper.js
-
-// In scraper.js
-
-async function scrapeChapterImages(chapterUrl) {
-  let browser = null;
-  let page = null;
+// --- Site-Specific Function for AsuraScans Series ---
+// Renamed from scrapeSeriesPage to be more specific
+async function scrapeAsuraSeries(seriesUrl) {
   try {
-    console.log(`Launching browser to fetch images from ${chapterUrl}...`);
-    browser = await puppeteer.launch({
-      executablePath: '/usr/bin/chromium',
-      headless: "new",
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
-    });
-    page = await browser.newPage();
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
-    );
-    await page.goto(chapterUrl, {
-      waitUntil: 'domcontentloaded',
-      timeout: 60000,
-    });
-    
-    // Using a delay to ensure all scripts have loaded
-    console.log('Waiting for page scripts to finish...');
-    await new Promise(resolve => setTimeout(resolve, 5000));
-
-    // --- FINAL FIX: Using the correct selector based on your findings ---
-    const imageSelector = 'img[alt^="chapter page"]';
-    console.log(`Now waiting for the image selector: "${imageSelector}"`);
-    await page.waitForSelector(imageSelector, { timeout: 60000 });
-
-    const imageUrls = await page.evaluate((selector) => {
-      // This script runs inside the browser
-      const images = Array.from(document.querySelectorAll(selector));
-      return images.map(img => img.src);
-    }, imageSelector); // Pass the selector into the evaluate function
-    // -----------------------------------------------------------------
-
-    console.log(`Found ${imageUrls.length} images.`);
-    return imageUrls;
-
-  } catch (error) {
-    console.error(`Error fetching images with Puppeteer: ${error.message}`);
-    if (page) {
-      await page.screenshot({ path: 'error-screenshot.png' });
-      console.log('Saved an error-screenshot.png to help debug.');
-    }
-    return [];
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
-  }
-}
-// ... your other functions and module.exports
-
-async function scrapeSeriesPage(seriesUrl) {
-  // ... same code as before ...
-  try {
-    console.log(`Fetching series data from ${seriesUrl}...`);
-
-    const { data } = await axios.get(seriesUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
-      },
-    });
-
+    console.log(`Using AsuraScans series scraper for: ${seriesUrl}`);
+    const { data } = await axios.get(seriesUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     const $ = cheerio.load(data);
 
     const seriesTitle = $("span.text-xl.font-bold").text().trim();
     const coverImageUrl = $('img[alt="poster"]').attr("src");
-
-    console.log(`Scraping details for: "${seriesTitle}"`);
-
     const chapters = [];
-    $("div.pl-4.pr-2.pb-4.overflow-y-auto a").each((index, element) => {
+
+    $("div.pl-4.pr-2.pb-4.overflow-y-auto a").each((_, element) => {
       const linkElement = $(element);
       const relativeUrl = linkElement.attr("href");
-      const chapterUrl = new URL(relativeUrl, "https://asuracomic.net/series/").href; // This URL is already absolute
-      const chapterNumberAndTitle = linkElement
-        .find("h3")
-        .first()
-        .text()
-        .replace("Chapter", "")
-        .trim();
+      // CORRECTED: The base URL should be the root domain.
+      const chapterUrl = new URL(relativeUrl, "https://asuracomic.net/").href; 
+      const chapterNumberAndTitle = linkElement.find("h3").first().text().replace("Chapter", "").trim();
       const chapterDate = linkElement.find("h3").last().text().trim();
-
-      chapters.push({
-        number: chapterNumberAndTitle,
-        url: chapterUrl,
-        date: chapterDate,
-      });
+      chapters.push({ number: chapterNumberAndTitle, url: chapterUrl, date: chapterDate });
     });
 
     chapters.reverse();
-
-    return {
-      title: seriesTitle,
-      cover: coverImageUrl,
-      chapters: chapters,
-    };
+    return { title: seriesTitle, cover: coverImageUrl, chapters: chapters };
   } catch (error) {
     console.error(`Error during series scraping: ${error.message}`);
     return null;
   }
 }
 
-// --- NEW AND IMPROVED FUNCTION FOR SCRAPING IMAGES ---
+// --- Site-Specific Function for AsuraScans Chapter Images ---
+// Renamed from scrapeChapterImages
+async function scrapeAsuraChapterImages(chapterUrl) {
+  let browser = null;
+  let page = null;
+  try {
+    console.log(`Using AsuraScans chapter scraper for: ${chapterUrl}...`);
+    browser = await puppeteer.launch({
+      executablePath: '/usr/bin/chromium',
+      headless: "new",
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+    });
+    page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36');
+    await page.goto(chapterUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    await page.keyboard.press('Escape');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    const imageSelector = 'img[alt^="chapter page"]';
+    await page.waitForSelector(imageSelector, { timeout: 60000 });
+    const imageUrls = await page.evaluate((selector) => {
+      const images = Array.from(document.querySelectorAll(selector));
+      return images.map(img => img.src);
+    }, imageSelector);
+    
+    console.log(`Found ${imageUrls.length} images.`);
+    return imageUrls;
+  } catch (error) {
+    console.error(`Error fetching images with Puppeteer: ${error.message}`);
+    if (page) await page.screenshot({ path: 'error-screenshot.png' });
+    return [];
+  } finally {
+    if (browser) await browser.close();
+  }
+}
+
 // In scraper.js
 
 
+async function scrapeArcaneSeries(seriesUrl) {
+  console.log(`Using ArcaneScans series scraper for: ${seriesUrl}`);
+  try {
+    const { data } = await axios.get(seriesUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    const $ = cheerio.load(data);
+
+    const title = $('h1.entry-title').text().trim();
+    const cover = $('.thumb img').attr('src');
+    
+    const chaptersList = [];
+    $('.eplister ul li').each((_, element) => {
+      const linkTag = $(element).find('a');
+      const dateTag = $(element).find('.chapterdate');
+      
+      chaptersList.push({
+        url: linkTag.attr('href'),
+        number: linkTag.find('.chapternum').text().replace('Chapter', '').trim(),
+        date: dateTag.text().trim(),
+      });
+    });
+
+    // Arcane Scans lists newest first, so we don't need to reverse.
+    return { title, cover, chapters: chaptersList };
+  } catch (error) {
+    console.error(`Error scraping ArcaneScans series: ${error.message}`);
+    return null;
+  }
+}
+
+// In scraper.js
+
+// In scraper.js
+
+async function scrapeArcaneChapterImages(chapterUrl) {
+  console.log(`Using ArcaneScans chapter scraper for: ${chapterUrl}`);
+  try {
+    const { data: html } = await axios.get(chapterUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    
+    // Find the script tag that contains the image data
+    const match = html.match(/ts_reader.run\((.*?)\);/);
+    if (!match || !match[1]) {
+      throw new Error("Could not find ts_reader data script tag.");
+    }
+
+    // The data is a JavaScript object, not perfect JSON, so we need to parse it carefully
+    const scriptData = match[1];
+    // Use another regex to find the 'images' array within the object string
+    const imagesMatch = scriptData.match(/"images":(\[".*?"\])/);
+    
+    if (!imagesMatch || !imagesMatch[1]) {
+      throw new Error("Could not find the images array within the script data.");
+    }
+    
+    // Parse the found array string into a real JavaScript array
+    const imageUrls = JSON.parse(imagesMatch[1]);
+    return imageUrls;
+
+  } catch (error) {
+    console.error(`Error scraping ArcaneScans chapter: ${error.message}`);
+    return [];
+  }
+}
+
+
+// --- NEW "MASTER" FUNCTIONS ---
+
+/**
+ * Checks the URL and calls the correct site-specific scraper for a SERIES page.
+ * @param {string} url The URL of the series to scrape.
+ */
+async function scrapeSeriesPage(url) {
+  if (url.includes('asuracomic.net')) {
+    return await scrapeAsuraSeries(url);
+  } else if (url.includes('arcanescans.com') ) {
+    return await scrapeArcaneSeries(url);
+  } else {
+    throw new Error("Unsupported website for series scraping.");
+  }
+}
+
+/**
+ * Checks the URL and calls the correct site-specific scraper for a CHAPTER page.
+ * @param {string} url The URL of the chapter to scrape.
+ */
+async function scrapeChapterImages(url) {
+  if (url.includes('asuracomic.net')) {
+    return await scrapeAsuraChapterImages(url);
+  } else if (url.includes('arcanescans.com')) {
+    return await scrapeArcaneChapterImages(url);
+  } else {
+    throw new Error("Unsupported website for chapter scraping.");
+  }
+}
 
 module.exports = {
   scrapeSeriesPage,
