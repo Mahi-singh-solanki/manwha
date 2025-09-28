@@ -23,6 +23,8 @@ mongoose.connect(
 app.use("/series", seriesRoutes);
 app.use("/chapters", chapterRoutes);
 
+// In backend/index.js
+
 app.get('/image-proxy', async (req, res) => {
   try {
     const imageUrl = req.query.url;
@@ -30,21 +32,26 @@ app.get('/image-proxy', async (req, res) => {
       return res.status(400).send('Image URL is required');
     }
 
-    // Fetch the image from the original source as a stream
+    // --- THE FIX IS HERE ---
+    // 1. Create a URL object from the image URL
+    const urlObject = new URL(imageUrl);
+    // 2. Get the origin (e.g., "https://arcanescans.com") to use as the Referer
+    const referer = urlObject.origin;
+
     const response = await axios({
       method: 'get',
       url: imageUrl,
       responseType: 'stream',
       headers: {
-        // Some image hosts require a Referer header
-        'Referer': 'https://asuracomic.net/' 
+        // 3. Use the dynamic referer
+        'Referer': referer,
+        // It's also a good idea to add a User-Agent
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
       }
     });
+    // --- END OF FIX ---
 
-    // Send the correct content type header
     res.setHeader('Content-Type', response.headers['content-type']);
-
-    // "Pipe" the image data from the source directly to the client
     response.data.pipe(res);
 
   } catch (error) {
