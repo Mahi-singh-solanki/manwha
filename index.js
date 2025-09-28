@@ -7,7 +7,7 @@ const cors = require('cors'); // 1. Import the cors package
 const app = express();
 app.use(body_parser.json());
 const corsOptions = {
-  origin:"https://mahi-manwha.netlify.app", // Only allow requests from your frontend URL
+  origin:"http://localhost:5173", // Only allow requests from your frontend URL
 };
 app.use(cors(corsOptions)); 
 
