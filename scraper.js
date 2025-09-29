@@ -39,71 +39,35 @@ async function scrapeAsuraSeries(seriesUrl) {
 // In scraper.js
 
 async function scrapeAsuraChapterImages(chapterUrl) {
-
-    console.log(`Using AsuraScans chapter scraper for: ${chapterUrl}...`);
-
-    let browser = null, page = null;
-
+    console.log(`Using NEW AsuraScans chapter scraper for: ${chapterUrl}`);
     try {
+        const { data: html } = await axios.get(chapterUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        const $ = cheerio.load(html);
 
-        browser = await puppeteer.launch({ executablePath: '/usr/bin/chromium', headless: "new", args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'] });
+        const scriptContent = $('#__NEXT_DATA__').html();
+        if (!scriptContent) {
+            throw new Error("Could not find __NEXT_DATA__ script tag.");
+        }
 
-        page = await browser.newPage();
-
-        await page.goto(chapterUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-
+        const jsonData = JSON.parse(scriptContent);
         
-
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        await page.keyboard.press('Escape'); // Attempt to close pop-ups
-
+        // Navigate through the JSON to find the image URLs
+        const pages = jsonData.props.pageProps.chapter.pages;
+        const imageUrls = pages.map(page => page.url);
         
-
-        // --- CALL THE AUTO-SCROLL FUNCTION ---
-
-        console.log("Scrolling page to load all images...");
-
-        await fullAutoScroll(page);
-
-        // ------------------------------------
-
-
-
-        const imageSelector = 'img[alt^="chapter "]';
-
-         const imageUrls = await page.evaluate(() => {
-
-      return Array.from(document.querySelectorAll("img"))
-
-        .map(img => img.getAttribute("src") || img.getAttribute("data-src"))
-
-        .filter(src => src && src.includes("https://gg.asuracomic.net/storage/media"));
-
-    });
-
-
-
-        
+        if (!imageUrls || imageUrls.length === 0) {
+            throw new Error('Image list was found in JSON but was empty.');
+        }
 
         console.log(`Found ${imageUrls.length} images.`);
-
         return imageUrls;
 
     } catch (error) {
-
-        console.error(`Error fetching images with Puppeteer: ${error.message}`);
-
-        if (page) await page.screenshot({ path: 'error-screenshot.png' });
-
+        console.error(`Error scraping AsuraScans chapter: ${error.message}`);
         return [];
-
-    } finally {
-
-        if (browser) await browser.close();
-
     }
-
 }
 
 async function fullAutoScroll(page) {
