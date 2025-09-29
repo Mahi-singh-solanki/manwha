@@ -54,7 +54,10 @@ async function scrapeAsuraChapterImages(chapterUrl) {
     await page.keyboard.press('Escape');
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    const imageSelector = 'img[alt^="chapter page"]';
+    const imageSelector = 'img[alt^="chapter "], img.object-cover';
+    // ----------------------
+    
+    console.log(`Now waiting for the image selector: "${imageSelector}"`);
     await page.waitForSelector(imageSelector, { timeout: 60000 });
     const imageUrls = await page.evaluate((selector) => {
       const images = Array.from(document.querySelectorAll(selector));
