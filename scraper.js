@@ -64,7 +64,7 @@ async function scrapeAsuraChapterImages(chapterUrl) {
     const imageUrls = await page.evaluate(() => {
       return Array.from(document.querySelectorAll("img"))
         .map(img => img.getAttribute("src") || img.getAttribute("data-src"))
-        .filter(src => src && src.includes("asuracomic.net/storage"));
+        .filter(src => src && src.includes("https://gg.asuracomic.net/storage/media"));
     });
 
     console.log(`Found ${imageUrls.length} images.`);
