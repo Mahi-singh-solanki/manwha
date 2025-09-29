@@ -61,7 +61,8 @@ async function scrapeAsuraChapterImages(chapterUrl) {
     await autoScroll(page);
 
     // Flexible selector
-    const imageSelector = 'img[alt^="chapter page"], img[alt^="chapter "], img[src]';
+    const imageSelector = 'img[alt^="chapter page"][src*="asuracomic.net/storage"]';
+
 
     console.log(`Now waiting for the image selector: "${imageSelector}"`);
     await page.waitForSelector(imageSelector, { timeout: 60000 });
