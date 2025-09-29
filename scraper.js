@@ -52,23 +52,25 @@ async function scrapeAsuraChapterImages(chapterUrl) {
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36');
     await page.goto(chapterUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
     
+    // Give time for popups and scripts
     await new Promise(resolve => setTimeout(resolve, 5000));
-    await page.keyboard.press('Escape'); // Attempt to close any pop-ups
+    await page.keyboard.press('Escape');
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // --- THE FIX IS HERE ---
-    // This selector now looks for EITHER the old format OR the new format.
-    const imageSelector = 'img[alt^="chapter page"], img[alt^="chapter "]';
-    // ----------------------
-    
+    // Scroll to ensure lazy-loaded images appear
+    await autoScroll(page);
+
+    // Flexible selector
+    const imageSelector = 'img[alt^="chapter page"], img[alt^="chapter "], img[src]';
+
     console.log(`Now waiting for the image selector: "${imageSelector}"`);
     await page.waitForSelector(imageSelector, { timeout: 60000 });
-    
+
     const imageUrls = await page.evaluate((selector) => {
       const images = Array.from(document.querySelectorAll(selector));
-      return images.map(img => img.src);
+      return images.map(img => img.getAttribute('src'));
     }, imageSelector);
-    
+
     console.log(`Found ${imageUrls.length} images.`);
     return imageUrls;
   } catch (error) {
@@ -78,6 +80,44 @@ async function scrapeAsuraChapterImages(chapterUrl) {
   } finally {
     if (browser) await browser.close();
   }
+}
+
+async function autoScroll(page) {
+  await page.evaluate(async () => {
+    await new Promise((resolve) => {
+      let totalHeight = 0;
+      const distance = 500;
+      const timer = setInterval(() => {
+        const scrollHeight = document.body.scrollHeight;
+        window.scrollBy(0, distance);
+        totalHeight += distance;
+
+        if (totalHeight >= scrollHeight) {
+          clearInterval(timer);
+          resolve();
+        }
+      }, 300);
+    });
+  });
+}
+
+async function autoScroll(page) {
+  await page.evaluate(async () => {
+    await new Promise((resolve) => {
+      let totalHeight = 0;
+      const distance = 500;
+      const timer = setInterval(() => {
+        const scrollHeight = document.body.scrollHeight;
+        window.scrollBy(0, distance);
+        totalHeight += distance;
+
+        if (totalHeight >= scrollHeight) {
+          clearInterval(timer);
+          resolve();
+        }
+      }, 300);
+    });
+  });
 }
 // In scraper.js
 
