@@ -20,7 +20,7 @@ async function scrapeAsuraSeries(seriesUrl) {
       const linkElement = $(element);
       const relativeUrl = linkElement.attr("href");
       // CORRECTED: The base URL should be the root domain.
-      const chapterUrl = new URL(relativeUrl, "https://asuracomic.net/series/").href; 
+      const chapterUrl = new URL(relativeUrl, "https://asuracomic.net/").href; 
       const chapterNumberAndTitle = linkElement.find("h3").first().text().replace("Chapter", "").trim();
       const chapterDate = linkElement.find("h3").last().text().trim();
       chapters.push({ number: chapterNumberAndTitle, url: chapterUrl, date: chapterDate });
@@ -39,39 +39,46 @@ async function scrapeAsuraSeries(seriesUrl) {
 // In scraper.js
 
 async function scrapeAsuraChapterImages(chapterUrl) {
-    console.log(`Using NEW AsuraScans chapter scraper for: ${chapterUrl}`);
-    try {
-        // 1. Fetch the page HTML quickly with axios
-        const { data: html } = await axios.get(chapterUrl, {
-            headers: { 'User-Agent': 'Mozilla/5.0' }
-        });
+  let browser = null;
+  let page = null;
+  try {
+    console.log(`Using AsuraScans chapter scraper for: ${chapterUrl}...`);
+    browser = await puppeteer.launch({
+      executablePath: '/usr/bin/chromium',
+      headless: "new",
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+    });
+    page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36');
+    await page.goto(chapterUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    await page.keyboard.press('Escape'); // Attempt to close any pop-ups
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // 2. Find the script tag containing the page data using a regex
-        const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/);
-        if (!match || !match[1]) {
-            throw new Error("Could not find __NEXT_DATA__ script tag.");
-        }
-
-        // 3. Parse the JSON data
-        const jsonData = JSON.parse(match[1]);
-
-        // 4. Navigate through the complex JSON object to find the image URLs
-        const pages = jsonData.props.pageProps.chapter.pages;
-        const imageUrls = pages.map(page => page.url);
-        
-        if (!imageUrls || imageUrls.length === 0) {
-            throw new Error('Image list was found but was empty.');
-        }
-
-        console.log(`Found ${imageUrls.length} images.`);
-        return imageUrls;
-
-    } catch (error) {
-        console.error(`Error scraping AsuraScans chapter: ${error.message}`);
-        return [];
-    }
+    // --- THE FIX IS HERE ---
+    // This selector now looks for EITHER the old format OR the new format.
+    const imageSelector = 'img[alt^="chapter page"], img[alt^="chapter "]';
+    // ----------------------
+    
+    console.log(`Now waiting for the image selector: "${imageSelector}"`);
+    await page.waitForSelector(imageSelector, { timeout: 60000 });
+    
+    const imageUrls = await page.evaluate((selector) => {
+      const images = Array.from(document.querySelectorAll(selector));
+      return images.map(img => img.src);
+    }, imageSelector);
+    
+    console.log(`Found ${imageUrls.length} images.`);
+    return imageUrls;
+  } catch (error) {
+    console.error(`Error fetching images with Puppeteer: ${error.message}`);
+    if (page) await page.screenshot({ path: 'error-screenshot.png' });
+    return [];
+  } finally {
+    if (browser) await browser.close();
+  }
 }
-
 // In scraper.js
 
 
