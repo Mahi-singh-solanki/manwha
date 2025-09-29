@@ -49,57 +49,44 @@ async function scrapeAsuraChapterImages(chapterUrl) {
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
     });
     page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36');
+    await page.setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
+    );
+
     await page.goto(chapterUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    
-    // Give time for popups and scripts
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    await page.keyboard.press('Escape');
-    await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Scroll to ensure lazy-loaded images appear
-    await autoScroll(page);
+    await page.keyboard.press('Escape'); // close popups
+    await new Promise(r => setTimeout(r, 2000));
 
-    // Flexible selector
-    const imageSelector = 'img[alt^="chapter page"][src*="asuracomic.net/storage"]';
+    await fullAutoScroll(page);
 
-
-    console.log(`Now waiting for the image selector: "${imageSelector}"`);
-    await page.waitForSelector(imageSelector, { timeout: 60000 });
-
-    const imageUrls = await page.evaluate((selector) => {
-      const images = Array.from(document.querySelectorAll(selector));
-      return images.map(img => img.getAttribute('src'));
-    }, imageSelector);
+    // Grab both src and data-src
+    const imageUrls = await page.evaluate(() => {
+      return Array.from(document.querySelectorAll("img"))
+        .map(img => img.getAttribute("src") || img.getAttribute("data-src"))
+        .filter(src => src && src.includes("asuracomic.net/storage"));
+    });
 
     console.log(`Found ${imageUrls.length} images.`);
     return imageUrls;
   } catch (error) {
     console.error(`Error fetching images with Puppeteer: ${error.message}`);
-    if (page) await page.screenshot({ path: 'error-screenshot.png' });
+    if (page) await page.screenshot({ path: 'error-screenshot.png', fullPage: true });
     return [];
   } finally {
     if (browser) await browser.close();
   }
 }
 
-async function autoScroll(page) {
-  await page.evaluate(async () => {
-    await new Promise((resolve) => {
-      let totalHeight = 0;
-      const distance = 500;
-      const timer = setInterval(() => {
-        const scrollHeight = document.body.scrollHeight;
-        window.scrollBy(0, distance);
-        totalHeight += distance;
-
-        if (totalHeight >= scrollHeight) {
-          clearInterval(timer);
-          resolve();
-        }
-      }, 300);
-    });
-  });
+async function fullAutoScroll(page) {
+  let prevHeight = 0;
+  while (true) {
+    const currentHeight = await page.evaluate('document.body.scrollHeight');
+    if (currentHeight === prevHeight) break; // stop when no more new content
+    prevHeight = currentHeight;
+    await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
+    await new Promise(r => setTimeout(r, 1500));
+  }
 }
 
 async function autoScroll(page) {
