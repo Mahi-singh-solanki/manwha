@@ -20,7 +20,7 @@ async function scrapeAsuraSeries(seriesUrl) {
       const linkElement = $(element);
       const relativeUrl = linkElement.attr("href");
       // CORRECTED: The base URL should be the root domain.
-      const chapterUrl = new URL(relativeUrl, "https://asuracomic.net/").href; 
+      const chapterUrl = new URL(relativeUrl, "https://asuracomic.net/series/").href; 
       const chapterNumberAndTitle = linkElement.find("h3").first().text().replace("Chapter", "").trim();
       const chapterDate = linkElement.find("h3").last().text().trim();
       chapters.push({ number: chapterNumberAndTitle, url: chapterUrl, date: chapterDate });
