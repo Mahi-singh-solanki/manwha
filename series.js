@@ -74,17 +74,42 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({ error: "Server connection error" });
   }
 });
+// In backend/series.js
 
 router.get("/:id/refresh", async (req, res) => {
   try {
-    const series = await Series.findById(req.params.id);
-    if (!series) return res.status(404).json({ error: "Not found" });
+    let series = await Series.findById(req.params.id);
+    if (!series) return res.status(404).json({ error: "Series not found" });
 
-    res.json({ message: "Scraper triggered for this series" });
+    const scrapedData = await scrapeSeriesPage(series.source_url);
+    if (!scrapedData) {
+      return res.status(400).json({ error: "Scraping failed." });
+    }
+
+    // --- THIS IS THE FIX ---
+    // Re-fetch the document right before updating it to get the latest version
+    const seriesToUpdate = await Series.findById(req.params.id);
+    if (!seriesToUpdate) return res.status(404).json({ error: "Series was deleted during refresh." });
+    // ----------------------
+
+    const existingChapterUrls = new Set(seriesToUpdate.chapters.map(ch => ch.source_url));
+    const newChapters = scrapedData.chapters.filter(ch => !existingChapterUrls.has(ch.url));
+
+    if (newChapters.length === 0) {
+      return res.json({ message: "No new chapters found.", series: seriesToUpdate });
+    }
+    
+    // ... (formatting logic) ...
+    
+    // Update and save the fresh document
+    seriesToUpdate.chapters.unshift(...newChapters);
+    const updatedSeries = await seriesToUpdate.save();
+
+    res.json({ message: `${newChapters.length} new chapters added.`, series: updatedSeries });
+
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Server connection error" });
+    res.status(500).json({ error: "Server error during refresh." });
   }
 });
-
 module.exports = { router };
