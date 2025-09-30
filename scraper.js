@@ -36,42 +36,107 @@ async function scrapeAsuraSeries(seriesUrl) {
 
 // --- Site-Specific Function for AsuraScans Chapter Images ---
 // Renamed from scrapeChapterImages
-async function scrapeAsuraChapterImages(chapterUrl) {
-  let browser = null;
-  let page = null;
-  try {
-    console.log(`Using AsuraScans chapter scraper for: ${chapterUrl}...`);
-    browser = await puppeteer.launch({
-      executablePath: '/usr/bin/chromium',
-      headless: "new",
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
-    });
-    page = await browser.newPage();
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36');
-    await page.goto(chapterUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    await page.keyboard.press('Escape');
-    await new Promise(resolve => setTimeout(resolve, 2000));
+// In scraper.js
 
-    const imageSelector = 'img[alt^="chapter page"]';
-    await page.waitForSelector(imageSelector, { timeout: 60000 });
-    const imageUrls = await page.evaluate((selector) => {
-      const images = Array.from(document.querySelectorAll(selector));
-      return images.map(img => img.src);
-    }, imageSelector);
-    
-    console.log(`Found ${imageUrls.length} images.`);
-    return imageUrls;
-  } catch (error) {
-    console.error(`Error fetching images with Puppeteer: ${error.message}`);
-    if (page) await page.screenshot({ path: 'error-screenshot.png' });
-    return [];
-  } finally {
-    if (browser) await browser.close();
-  }
+async function scrapeAsuraChapterImages(chapterUrl) {
+
+  let browser = null;
+
+  let page = null;
+
+  try {
+
+    console.log(`Using AsuraScans chapter scraper for: ${chapterUrl}...`);
+
+    browser = await puppeteer.launch({
+
+      executablePath: '/usr/bin/chromium',
+
+      headless: "new",
+
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+
+    });
+
+    page = await browser.newPage();
+
+    await page.setUserAgent(
+
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
+
+    );
+
+
+
+    await page.goto(chapterUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+
+
+
+    await page.keyboard.press('Escape'); // close popups
+
+    await new Promise(r => setTimeout(r, 2000));
+
+
+
+    await fullAutoScroll(page);
+
+
+
+    // Grab both src and data-src
+
+    const imageUrls = await page.evaluate(() => {
+
+      return Array.from(document.querySelectorAll("img"))
+
+        .map(img => img.getAttribute("src") || img.getAttribute("data-src"))
+
+        .filter(src => src && src.includes("https://gg.asuracomic.net/storage/media"));
+
+    });
+
+
+
+    console.log(`Found ${imageUrls.length} images.`);
+
+    return imageUrls;
+
+  } catch (error) {
+
+    console.error(`Error fetching images with Puppeteer: ${error.message}`);
+
+    if (page) await page.screenshot({ path: 'error-screenshot.png', fullPage: true });
+
+    return [];
+
+  } finally {
+
+    if (browser) await browser.close();
+
+  }
+
 }
 
+
+
+async function fullAutoScroll(page) {
+
+  let prevHeight = 0;
+
+  while (true) {
+
+    const currentHeight = await page.evaluate('document.body.scrollHeight');
+
+    if (currentHeight === prevHeight) break; // stop when no more new content
+
+    prevHeight = currentHeight;
+
+    await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
+
+    await new Promise(r => setTimeout(r, 1500));
+
+  }
+
+}
 // In scraper.js
 
 
