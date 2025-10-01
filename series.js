@@ -76,40 +76,59 @@ router.delete("/:id", async (req, res) => {
 });
 // In backend/series.js
 
-router.get("/:id/refresh", async (req, res) => {
-  try {
-    let series = await Series.findById(req.params.id);
-    if (!series) return res.status(404).json({ error: "Series not found" });
+// This is only the refresh route. Add it to your existing series.js file.
 
-    const scrapedData = await scrapeSeriesPage(series.source_url);
-    if (!scrapedData) {
-      return res.status(400).json({ error: "Scraping failed." });
-    }
+// In backend/series.js
 
-    // --- THIS IS THE FIX ---
-    // Re-fetch the document right before updating it to get the latest version
-    const seriesToUpdate = await Series.findById(req.params.id);
-    if (!seriesToUpdate) return res.status(404).json({ error: "Series was deleted during refresh." });
-    // ----------------------
+// In backend/series.js
 
-    const existingChapterUrls = new Set(seriesToUpdate.chapters.map(ch => ch.source_url));
-    const newChapters = scrapedData.chapters.filter(ch => !existingChapterUrls.has(ch.url));
+// Add this new route to the file
+// In backend/series.js
 
-    if (newChapters.length === 0) {
-      return res.json({ message: "No new chapters found.", series: seriesToUpdate });
-    }
+router.post("/refresh-all", async (req, res) => {
+  console.log('[MANUAL-REFRESH] Starting full library refresh job...');
+  res.json({ message: "Refresh process started on the server." });
+
+  (async () => {
+    const allSeries = await Series.find();
+    console.log(`[MANUAL-REFRESH] Found ${allSeries.length} series to check.`);
     
-    // ... (formatting logic) ...
-    
-    // Update and save the fresh document
-    seriesToUpdate.chapters.unshift(...newChapters);
-    const updatedSeries = await seriesToUpdate.save();
+    for (const series of allSeries) {
+      try {
+        const scrapedData = await scrapeSeriesPage(series.source_url);
+        if (!scrapedData) continue;
 
-    res.json({ message: `${newChapters.length} new chapters added.`, series: updatedSeries });
+        const seriesToUpdate = await Series.findById(series._id);
 
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error during refresh." });
-  }
+        // --- THE FIX IS HERE ---
+        // 1. Create a Set of existing URLs with any trailing slashes removed.
+        const existingChapterUrls = new Set(
+          seriesToUpdate.chapters.map(ch => ch.source_url.replace(/\/$/, ""))
+        );
+
+        // 2. Filter the new chapters by comparing their normalized URLs.
+        const newChapters = scrapedData.chapters.filter(ch => 
+          !existingChapterUrls.has(ch.url.replace(/\/$/, ""))
+        );
+        // -----------------------
+
+        if (newChapters.length > 0) {
+          const formattedNewChapters = newChapters.map(ch => ({
+            chapter_number: ch.number,
+            source_url: ch.url,
+            release_date: new Date(),
+          }));
+          seriesToUpdate.chapters.unshift(...formattedNewChapters);
+          await seriesToUpdate.save();
+          console.log(`[MANUAL-REFRESH] Added ${newChapters.length} new chapters to ${series.title}.`);
+        }
+      } catch (error) {
+        console.error(`[MANUAL-REFRESH] Failed to refresh ${series.title}:`, error.message);
+      }
+      await new Promise(resolve => setTimeout(resolve, 30000));
+    }
+    console.log(`[MANUAL-REFRESH] Job finished.`);
+  })();
 });
+
 module.exports = { router };
