@@ -101,20 +101,22 @@ router.post("/refresh-all", async (req, res) => {
         const seriesToUpdate = await Series.findById(series._id);
 
         // --- THE FIX IS HERE ---
-        // 1. Create a Set of existing URLs with any trailing slashes removed.
-        const existingChapterUrls = new Set(
-          seriesToUpdate.chapters.map(ch => ch.source_url.replace(/\/$/, ""))
+        // 1. Create a Set of existing chapter NUMBERS for fast lookups.
+        // We convert to String to ensure a reliable comparison (e.g., '101' vs 101).
+        const existingChapterNumbers = new Set(
+          seriesToUpdate.chapters.map(ch => String(ch.chapter_number))
         );
 
-        // 2. Filter the new chapters by comparing their normalized URLs.
+        // 2. Filter the newly scraped chapters by checking if their 'number'
+        // is already in our Set of existing chapter numbers.
         const newChapters = scrapedData.chapters.filter(ch => 
-          !existingChapterUrls.has(ch.url.replace(/\/$/, ""))
+          !existingChapterNumbers.has(String(ch.number))
         );
         // -----------------------
 
         if (newChapters.length > 0) {
           const formattedNewChapters = newChapters.map(ch => ({
-            chapter_number: ch.number,
+            chapter_number: ch.number, // Make sure scraped 'number' maps to 'chapter_number'
             source_url: ch.url,
             release_date: new Date(),
           }));
@@ -125,10 +127,10 @@ router.post("/refresh-all", async (req, res) => {
       } catch (error) {
         console.error(`[MANUAL-REFRESH] Failed to refresh ${series.title}:`, error.message);
       }
-      await new Promise(resolve => setTimeout(resolve, 30000));
+      // A delay to avoid getting blocked by the source site
+      await new Promise(resolve => setTimeout(resolve, 30000)); 
     }
     console.log(`[MANUAL-REFRESH] Job finished.`);
   })();
 });
-
 module.exports = { router };
