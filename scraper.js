@@ -50,7 +50,7 @@ async function scrapeAsuraChapterImages(chapterUrl) {
 
     browser = await puppeteer.launch({
 
-      // executablePath: '/usr/bin/chromium',
+      executablePath: '/usr/bin/chromium',
 
       headless: "new",
 
