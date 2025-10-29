@@ -45,19 +45,26 @@ async function scrapeAsuraChapterImages(chapterUrl) {
   let browser = null;
 
   let page = null;
-
+const PUPPETEER_LAUNCH_ARGS = [
+        ...chromiumBinary.args, // Recommended args for memory/speed from the binary package
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-gpu',
+        '--disable-dev-shm-usage', // Critical for container RAM limits
+        '--disable-blink-features=AutomationControlled', // Manual stealth flag
+    ];
   try {
 
     console.log(`Using AsuraScans chapter scraper for: ${chapterUrl}...`);
 
     browser = await puppeteer.launch({
 
-      executablePath: '/usr/bin/chromium',
+      executablePath: await chromiumBinary.executablePath(), 
 
-      headless: "new",
+            headless: chromiumBinary.headless, // Use the recommended headless flag from the package
 
-      args: [...chromiumBinary.args,'--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu','--disable-dev-shm-usage', // Critical
-        '--disable-blink-features=AutomationControlled',],
+            // --- FIX 2: Use the clean, non-conflicting arguments array ---
+            args: PUPPETEER_LAUNCH_ARGS,
 
     });
 
