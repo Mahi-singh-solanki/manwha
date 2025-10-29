@@ -1,8 +1,9 @@
 const axios = require("axios");
 const cheerio = require("cheerio");
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-puppeteer.use(StealthPlugin());
+const chromiumBinary = require('@sparticuz/chromium');
+// const puppeteer = require('puppeteer-extra');
+// const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+// puppeteer.use(StealthPlugin());
 
 // --- Site-Specific Function for AsuraScans Series ---
 // Renamed from scrapeSeriesPage to be more specific
@@ -54,7 +55,8 @@ async function scrapeAsuraChapterImages(chapterUrl) {
 
       headless: "new",
 
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
+      args: [...chromiumBinary.args,'--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu','--disable-dev-shm-usage', // Critical
+        '--disable-blink-features=AutomationControlled',],
 
     });
 
