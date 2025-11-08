@@ -340,7 +340,7 @@ async function scrapemanhuaplusChapterImages(chapterUrl) {
     const imageUrls = [];
     
     // Find all images inside the main reading container with the ID #readerarea
-    $('div.text-left p img').each((_, element) => {
+    $('div.text-left p img,div.text-left figure img').each((_, element) => {
       const imageUrl = $(element).attr('src');
       if (imageUrl) {
         imageUrls.push(imageUrl.trim());
