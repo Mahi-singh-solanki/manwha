@@ -294,6 +294,85 @@ async function scrapeKingofshojoChapterImages(chapterUrl) {
   }
 }
 
+
+async function scrapemanhuaplus(seriesUrl){
+  console.log(`Using manhuaplus series scraper for: ${seriesUrl}`);
+  try {
+    const { data } = await axios.get(seriesUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    const $ = cheerio.load(data);
+
+    const title = $('h1').text().trim();
+    const cover = $('.summary_image img.effect-fade').attr('data-src');
+    
+    const chaptersList = [];
+    // Find all list items in the chapter list container
+    $('ul.version-chap li').each((_, element) => {
+      const linkTag = $(element).find('a');
+      const dateTag = $(element).find('.chapter-release-date');
+      
+      chaptersList.push({
+        url: linkTag.attr('href'),
+        number: linkTag.text().replace('Chapter', '').trim(),
+        date: dateTag.text().trim(),
+      });
+    });
+
+    // This site lists newest first, so we reverse it to get chronological order
+    chaptersList.reverse();
+    
+    return { title, cover, chapters: chaptersList };
+  } catch (error) {
+    console.error(`Error scraping Kingofshojo series: ${error.message}`);
+    return null;
+  }
+}
+
+async function scrapemanhuaplusChapterImages(chapterUrl) {
+  console.log(`Using ManhuaPlus chapter scraper for: ${chapterUrl}`);
+  try {
+    const { data } = await axios.get(chapterUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    const $ = cheerio.load(data);
+
+    const imageUrls = [];
+    
+    // Find all images inside the main reading container with the ID #readerarea
+    $('div.text-left p img').each((_, element) => {
+      const imageUrl = $(element).attr('src');
+      if (imageUrl) {
+        imageUrls.push(imageUrl.trim());
+      }
+    });
+
+    if (imageUrls.length === 0) {
+        console.log("No images found with the primary selector. Trying fallback...");
+        // Fallback for pages that might use a script to store image data
+        const scriptContent = $('script:contains("ts_reader.run")').html();
+        if (scriptContent) {
+            const match = scriptContent.match(/"images":(\[".*?"\])/);
+            if (match && match[1]) {
+                const parsedUrls = JSON.parse(match[1]);
+                imageUrls.push(...parsedUrls);
+            }
+        }
+    }
+
+    if(imageUrls.length === 0){
+        throw new Error("Could not find any images on the page.");
+    }
+    
+    console.log(`Found ${imageUrls.length} images.`);
+    return imageUrls;
+  } catch (error) {
+    console.error(`Error scraping Kingofshojo chapter: ${error.message}`);
+    return [];
+  }
+}
+
+
 /**
  * Checks the URL and calls the correct site-specific scraper for a SERIES page.
  * @param {string} url The URL of the series to scrape.
@@ -305,6 +384,8 @@ async function scrapeSeriesPage(url) {
     return await scrapeArcaneSeries(url);
   }else if (url.includes('kingofshojo.com')) {
     return await scrapeKingofshojoSeries(url);}
+    else if (url.includes('manhuaplus.com')) {
+    return await scrapemanhuaplus(url);}
    else {
     throw new Error("Unsupported website for series scraping.");
   }
@@ -320,7 +401,9 @@ async function scrapeChapterImages(url) {
   } else if (url.includes('arcanescans.org')) {
     return await scrapeArcaneChapterImages(url);
   }else if (url.includes('kingofshojo.com')) {
-    return await scrapeKingofshojoChapterImages(url);} 
+    return await scrapeKingofshojoChapterImages(url);}
+    else if (url.includes('manhuaplus.com')) {
+    return await scrapemanhuaplusChapterImages(url);}  
   else {
     throw new Error("Unsupported website for chapter scraping.");
   }
