@@ -69,7 +69,6 @@ app.get('/image-proxy', async (req, res) => {
         'Accept-Encoding': 'gzip, deflate, br', // Essential for modern browser disguise
     }
 });
-
         res.setHeader('Content-Type', response.headers['content-type']);
         response.data.pipe(res);
 
