@@ -57,16 +57,18 @@ app.get('/image-proxy', async (req, res) => {
         // --- END DYNAMIC REFERER LOGIC ---
 
         const response = await axios({
-            method: 'get',
-            url: imageUrl,
-            responseType: 'stream',
-            headers: {
-                // Set the determined Referer domain
-                'Referer': refererDomain, 
-                // Masquerade User-Agent is essential
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
-            }
-        });
+    method: 'get',
+    url: imageUrl,
+    responseType: 'stream',
+    headers: {
+        'Referer': refererDomain, 
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+        
+        // --- ADD THESE TWO HEADERS ---
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br', // Essential for modern browser disguise
+    }
+});
 
         res.setHeader('Content-Type', response.headers['content-type']);
         response.data.pipe(res);
