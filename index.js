@@ -8,7 +8,7 @@ const axios = require("axios");
 const app = express();
 app.use(body_parser.json());
 const corsOptions = {
-  origin:"https://mahi-manwha.netlify.app/", // Only allow requests from your frontend URL
+  origin:"https://mahi-manwha.netlify.app", // Only allow requests from your frontend URL
 };
 app.use(cors(corsOptions)); 
 
@@ -26,38 +26,55 @@ app.use("/chapters", chapterRoutes);
 // In backend/index.js
 
 app.get('/image-proxy', async (req, res) => {
-  try {
-    const imageUrl = req.query.url;
-    if (!imageUrl) {
-      return res.status(400).send('Image URL is required');
+    try {
+        const imageUrl = req.query.url;
+        if (!imageUrl) {
+            return res.status(400).send('Image URL is required');
+        }
+
+        let refererDomain = '';
+
+        // --- DYNAMIC REFERER LOGIC ---
+        if (imageUrl.includes('asuracomic.net')) {
+            // Use the root domain for Asura
+            refererDomain = 'https://asuracomic.net';
+        } else if (imageUrl.includes('arcanescans.org')) {
+            // Use the root domain for ArcaneScans
+            refererDomain = 'https://arcanescans.org';
+        } else if (imageUrl.includes('kingofshojo.com')) {
+            // Use the root domain for KingOfShojo
+            refererDomain = 'https://kingofshojo.com';
+        } else if (imageUrl.includes('hivetoons.org') || imageUrl.includes('hivetoon.com')) {
+            // Use the root domain for Hivetoons (handles both subdomains/typos)
+            refererDomain = 'https://hivetoons.org';
+        } else if (imageUrl.includes('manhuaplus.com')) {
+            // Use the root domain for ManhuaPlus
+            refererDomain = 'https://manhuaplus.com';
+        } 
+        // Note: For generic image hosts like Imgur or external CDNs, 
+        // leaving the Referer empty or setting it to your own domain might be necessary.
+        // For security purposes, we'll only set it for known scraped sites.
+        // --- END DYNAMIC REFERER LOGIC ---
+
+        const response = await axios({
+            method: 'get',
+            url: imageUrl,
+            responseType: 'stream',
+            headers: {
+                // Set the determined Referer domain
+                'Referer': refererDomain, 
+                // Masquerade User-Agent is essential
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+            }
+        });
+
+        res.setHeader('Content-Type', response.headers['content-type']);
+        response.data.pipe(res);
+
+    } catch (error) {
+        console.error('Proxy Error:', error.message);
+        res.status(500).send('Failed to fetch image');
     }
-
-    // --- THE FIX IS HERE ---
-    // 1. Create a URL object from the image URL
-    const urlObject = new URL(imageUrl);
-    // 2. Get the origin (e.g., "https://arcanescans.com") to use as the Referer
-    const referer = urlObject.origin;
-
-    const response = await axios({
-      method: 'get',
-      url: imageUrl,
-      responseType: 'stream',
-      headers: {
-        // 3. Use the dynamic referer
-        'Referer': referer,
-        // It's also a good idea to add a User-Agent
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
-      }
-    });
-    // --- END OF FIX ---
-
-    res.setHeader('Content-Type', response.headers['content-type']);
-    response.data.pipe(res);
-
-  } catch (error) {
-    console.error('Proxy Error:', error.message);
-    res.status(500).send('Failed to fetch image');
-  }
 });
 app.listen(8080, () => {
   console.log("Server running on http://localhost:8080");

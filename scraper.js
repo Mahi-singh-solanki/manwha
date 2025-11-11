@@ -2,12 +2,10 @@ const axios = require("axios");
 const cheerio = require("cheerio");
 const chromiumBinary = require('@sparticuz/chromium');
 const puppeteer = require('puppeteer-core');
-// const puppeteer = require('puppeteer-extra');
-// const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-// puppeteer.use(StealthPlugin());
+const playwright = require('playwright');
 
-// --- Site-Specific Function for AsuraScans Series ---
-// Renamed from scrapeSeriesPage to be more specific
+
+
 async function scrapeAsuraSeries(seriesUrl) {
   try {
     console.log(`Using AsuraScans series scraper for: ${seriesUrl}`);
@@ -372,6 +370,74 @@ async function scrapemanhuaplusChapterImages(chapterUrl) {
   }
 }
 
+async function scrapehive(seriesUrl) {
+  console.log(`Using hivetoons series scraper for: ${seriesUrl}`);
+  const browser = await playwright.chromium.launch({ headless: true });
+  const page = await browser.newPage();
+
+  try {
+    await page.goto(seriesUrl, { waitUntil: 'networkidle' });
+
+    // Click the "Chapters" button
+    await page.click('button[data-key="chapters"]');
+    await page.waitForSelector('div.space-y-1 a');
+
+    // Extract data
+    const { title, cover, chaptersList } = await page.evaluate(() => {
+      const title = document.querySelector('h1.text-2xl')?.innerText.trim() || '';
+      const cover = document.querySelector('.relative img.object-cover')?.src || '';
+
+      const chaptersList = Array.from(
+        document.querySelectorAll('div.space-y-1 a.flex.items-center.justify-between')
+      ).map(aTag => {
+        const url = aTag.href || '';
+        const number = aTag.querySelector('h3')?.innerText.replace('Chapter', '').trim() || '';
+        const date = aTag.querySelector('.text-gray-400')?.innerText.trim() || '';
+        const status = aTag.querySelector('.text-green-400')?.innerText.trim() || ''; // e.g., "FREE"
+
+        return { url, number, date, status };
+      });
+
+      chaptersList.reverse(); // chronological order
+      return { title, cover, chaptersList };
+    });
+
+    await browser.close();
+    return { title, cover, chapters: chaptersList };
+  } catch (error) {
+    console.error(`Error scraping hivetoons series: ${error.message}`);
+    await browser.close();
+    return null;
+  }
+}
+
+
+async function scrapehivetoonsChapterImages(chapterUrl) {
+  console.log(`Using Hivetoons chapter scraper for: ${chapterUrl}`);
+  try {
+    const browser = await playwright.chromium.launch({ headless: true });
+    const page = await browser.newPage();
+
+    // Load page and wait for images to render
+    await page.goto(chapterUrl, { waitUntil: 'networkidle' });
+    await page.waitForSelector('img[data-image-index]', { timeout: 10000 });
+
+    // Extract images
+    const imageUrls = await page.$$eval('img[data-image-index]', imgs =>
+      imgs.map(img => img.src.trim())
+    );
+
+    if (imageUrls.length === 0) {
+      throw new Error('No images found, page may require scrolling or lazy loading');
+    }
+
+    console.log(`Found ${imageUrls.length} images.`);
+    await browser.close();
+    return imageUrls;
+  } catch (error) {
+    console.error(`Error scraping Hivetoons chapter: ${error.message}`);
+    return [];
+  }}
 
 /**
  * Checks the URL and calls the correct site-specific scraper for a SERIES page.
@@ -384,6 +450,8 @@ async function scrapeSeriesPage(url) {
     return await scrapeArcaneSeries(url);
   }else if (url.includes('kingofshojo.com')) {
     return await scrapeKingofshojoSeries(url);}
+    else if (url.includes('hivetoons.org')) {
+    return await scrapehive(url);}
     else if (url.includes('manhuaplus.com')) {
     return await scrapemanhuaplus(url);}
    else {
@@ -404,6 +472,8 @@ async function scrapeChapterImages(url) {
     return await scrapeKingofshojoChapterImages(url);}
     else if (url.includes('manhuaplus.com')) {
     return await scrapemanhuaplusChapterImages(url);}  
+    else if (url.includes('hivetoons.org')) {
+    return await scrapehivetoonsChapterImages(url);}
   else {
     throw new Error("Unsupported website for chapter scraping.");
   }
