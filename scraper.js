@@ -429,7 +429,7 @@ async function scrapehivetoonsChapterImages(chapterUrl) {
 
     // Load page and wait for images to render
     await page.goto(chapterUrl, { waitUntil: 'networkidle' });
-    await page.waitForSelector('img[data-image-index]', { timeout: 10000 });
+    await page.waitForSelector('img[data-image-index]', { state: 'attached',timeout: 10000 });
 
     // Extract images
     const imageUrls = await page.$$eval('img[data-image-index]', imgs =>
