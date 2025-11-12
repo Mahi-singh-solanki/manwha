@@ -3,12 +3,15 @@ const mongoose = require("mongoose");
 const body_parser = require("body-parser");
 const cors = require('cors'); // 1. Import the cors package
 const axios = require("axios");
-
+const PROXY_HOST = process.env.WS_PROXY_HOST;
+const PROXY_PORT = process.env.WS_PROXY_PORT;
+const PROXY_USER = process.env.WS_PROXY_USER;
+const PROXY_PASS = process.env.WS_PROXY_PASS;
 
 const app = express();
 app.use(body_parser.json());
 const corsOptions = {
-  origin:"https://mahi-manwha.netlify.app", // Only allow requests from your frontend URL
+  origin:"http://mahi-manwha.netlify.app", // Only allow requests from your frontend URL
 };
 app.use(cors(corsOptions)); 
 
@@ -55,11 +58,21 @@ app.get('/image-proxy', async (req, res) => {
         // leaving the Referer empty or setting it to your own domain might be necessary.
         // For security purposes, we'll only set it for known scraped sites.
         // --- END DYNAMIC REFERER LOGIC ---
-
+const proxyConfig = {
+            // Webshare often uses HTTP or SOCKS5 (check your Webshare settings)
+            protocol: 'http', 
+            host: PROXY_HOST,
+            port: parseInt(PROXY_PORT), // Ensure port is an integer
+            auth: {
+                username: PROXY_USER,
+                password: PROXY_PASS,
+            },
+        };
         const response = await axios({
     method: 'get',
     url: imageUrl,
     responseType: 'stream',
+    proxy: proxyConfig,
     headers: {
         'Referer': refererDomain, 
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
