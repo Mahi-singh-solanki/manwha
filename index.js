@@ -11,7 +11,7 @@ const PROXY_PASS = process.env.WS_PROXY_PASS;
 const app = express();
 app.use(body_parser.json());
 const corsOptions = {
-  origin:"http://mahi-manwha.netlify.app", // Only allow requests from your frontend URL
+  origin:"https://mahi-manwha.netlify.app", // Only allow requests from your frontend URL
 };
 app.use(cors(corsOptions)); 
 
