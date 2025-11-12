@@ -428,7 +428,7 @@ async function scrapehivetoonsChapterImages(chapterUrl) {
     const page = await browser.newPage();
 
     // Load page and wait for images to render
-    await page.goto(chapterUrl, { waitUntil: 'networkidle' });
+    await page.goto(chapterUrl, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('img[data-image-index]', { state: 'attached',timeout: 10000 });
 
     // Extract images
