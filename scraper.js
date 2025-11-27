@@ -1,8 +1,9 @@
 const axios = require("axios");
 const cheerio = require("cheerio");
-const chromiumBinary = require('@sparticuz/chromium');
+const chromium = require('@sparticuz/chromium');
 const puppeteer = require('puppeteer-core');
 const playwright = require('playwright');
+const { chromium: pwChromium } = require('playwright-core'); 
 
 
 
@@ -415,12 +416,20 @@ async function scrapehive(seriesUrl) {
 async function scrapehivetoonsChapterImages(chapterUrl) {
   console.log(`Using Hivetoons chapter scraper for: ${chapterUrl}`);
   try {
-    const browser = await playwright.chromium.launch({ headless: true });
+    const executablePath = await chromium.executablePath();
+        
+        const browser = await pwChromium.launch({
+            // Use the path provided by the serverless package
+            executablePath: executablePath,
+            // Use arguments and headless setting from the package
+            args: [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
+            headless: chromium.headless,
+        });
     const page = await browser.newPage();
 
     // Load page and wait for images to render
-    await page.goto(chapterUrl, { waitUntil: 'networkidle' });
-    await page.waitForSelector('img[data-image-index]', { timeout: 10000 });
+    await page.goto(chapterUrl, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('img[data-image-index]', { state: 'attached',timeout: 10000 });
 
     // Extract images
     const imageUrls = await page.$$eval('img[data-image-index]', imgs =>
