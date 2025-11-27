@@ -65,6 +65,22 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+router.put("/last/:id",async(req,res)=>{
+  try{
+    const {last_read}=req.body;
+    if (last_read === undefined) {
+      return res.status(400).json({ error: "last_read value is required" });
+    }
+    const series = await Series.findById(req.params.id);
+    series.last_read=last_read;
+    await series.save()
+    res.status(200).json({ message: `Last read ${last_read} `});
+  }catch(err){
+    console.error(err);
+    res.status(500).json({ error: "Server connection error" });
+  }
+})
+
 router.delete("/:id", async (req, res) => {
   try {
     await Series.findByIdAndDelete(req.params.id);

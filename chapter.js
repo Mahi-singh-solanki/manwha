@@ -15,6 +15,22 @@ router.get("/series/:id/chapters", async (req, res) => {
   }
 });
 
+router.post("/series/:id/read", async (req, res) => {
+  try {
+    const series = await Series.findById(req.params.id);
+    if (!series) return res.status(404).json({ error: "Series not found" });
+    series.chapters.map((currelem)=>{
+      currelem.read_status=true;
+    })
+    series.save()
+    res.json(series.chapters);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server connection error" });
+  }
+});
+
+
 router.get("/:id", async (req, res) => {
   try {
     const series = await Series.findOne({ "chapters._id": req.params.id });

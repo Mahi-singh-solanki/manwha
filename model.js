@@ -1,5 +1,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const { type } = require("os");
 
 const Chapter = new mongoose.Schema({
   chapter_number: String,
@@ -18,6 +19,7 @@ const Series = mongoose.model(
     cover_url: String,
     status: { type: String, enum: ["reading", "finished"], default: "reading" },
     chapters: [Chapter],
+    last_read:{type:String,default:"0"},
     created_at: { type: Date, default: Date.now },
     updated_at: { type: Date, default: Date.now },
   })
