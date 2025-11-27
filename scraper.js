@@ -45,7 +45,7 @@ async function scrapeAsuraChapterImages(chapterUrl) {
 
   let page = null;
 const PUPPETEER_LAUNCH_ARGS = [
-        ...chromiumBinary.args, // Recommended args for memory/speed from the binary package
+        ...chromium.args, // Recommended args for memory/speed from the binary package
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-gpu',
@@ -58,9 +58,9 @@ const PUPPETEER_LAUNCH_ARGS = [
 
     browser = await puppeteer.launch({
 
-      executablePath: await chromiumBinary.executablePath(), 
+      executablePath: await chromium.executablePath(), 
 
-            headless: chromiumBinary.headless, // Use the recommended headless flag from the package
+            headless: chromium.headless, // Use the recommended headless flag from the package
 
             // --- FIX 2: Use the clean, non-conflicting arguments array ---
             args: PUPPETEER_LAUNCH_ARGS,
