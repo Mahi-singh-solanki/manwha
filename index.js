@@ -19,6 +19,7 @@ app.use(cors(corsOptions));
 
 const { router: seriesRoutes } = require("./series");
 const { router: chapterRoutes } = require("./chapter");
+const { router: authRoutes } = require("./auth");
 
 mongoose.connect(
   "mongodb+srv://mahipalsinghapsit0:msdonrajputana@cluster0.am95irj.mongodb.net/manwha",
@@ -27,6 +28,7 @@ mongoose.connect(
 
 app.use("/series", seriesRoutes);
 app.use("/chapters", chapterRoutes);
+app.use("/auth",authRoutes)
 
 // In backend/index.js
 

@@ -81,6 +81,18 @@ router.put("/last/:id",async(req,res)=>{
   }
 })
 
+router.put("/complete/:id",async(req,res)=>{
+  try{
+    const series = await Series.findById(req.params.id);
+    series.status="finished";
+    await series.save()
+    res.status(200).json({ message: `Finished ${series.title} `});
+  }catch(err){
+    console.error(err);
+    res.status(500).json({ error: "Server connection error" });
+  }
+})
+
 router.delete("/:id", async (req, res) => {
   try {
     await Series.findByIdAndDelete(req.params.id);
@@ -137,6 +149,7 @@ router.post("/refresh-all", async (req, res) => {
             release_date: new Date(),
           }));
           seriesToUpdate.chapters.unshift(...formattedNewChapters);
+          seriesToUpdate.updated_at=Date.now()
           await seriesToUpdate.save();
           console.log(`[MANUAL-REFRESH] Added ${newChapters.length} new chapters to ${series.title}.`);
         }
