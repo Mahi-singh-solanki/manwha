@@ -294,8 +294,8 @@ async function scrapeKingofshojoChapterImages(chapterUrl) {
 }
 
 
-async function scrapemanhuaplus(seriesUrl){
-  console.log(`Using manhuaplus series scraper for: ${seriesUrl}`);
+async function scrapemanhuaus(seriesUrl){
+  console.log(`Using manhuaus series scraper for: ${seriesUrl}`);
   try {
     const { data } = await axios.get(seriesUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0' }
@@ -323,13 +323,13 @@ async function scrapemanhuaplus(seriesUrl){
     
     return { title, cover, chapters: chaptersList };
   } catch (error) {
-    console.error(`Error scraping Kingofshojo series: ${error.message}`);
+    console.error(`Error scraping manhuaus series: ${error.message}`);
     return null;
   }
 }
 
-async function scrapemanhuaplusChapterImages(chapterUrl) {
-  console.log(`Using ManhuaPlus chapter scraper for: ${chapterUrl}`);
+async function scrapemanhuausChapterImages(chapterUrl) {
+  console.log(`Using Manhuaus chapter scraper for: ${chapterUrl}`);
   try {
     const { data } = await axios.get(chapterUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0' }
@@ -339,8 +339,8 @@ async function scrapemanhuaplusChapterImages(chapterUrl) {
     const imageUrls = [];
     
     // Find all images inside the main reading container with the ID #readerarea
-    $('div.text-left p img,div.text-left figure img').each((_, element) => {
-      const imageUrl = $(element).attr('src');
+    $('div.page-break img').each((_, element) => {
+      const imageUrl = $(element).attr('data-src');
       if (imageUrl) {
         imageUrls.push(imageUrl.trim());
       }
@@ -366,7 +366,7 @@ async function scrapemanhuaplusChapterImages(chapterUrl) {
     console.log(`Found ${imageUrls.length} images.`);
     return imageUrls;
   } catch (error) {
-    console.error(`Error scraping Kingofshojo chapter: ${error.message}`);
+    console.error(`Error scraping manhuaus chapter: ${error.message}`);
     return [];
   }
 }
@@ -448,6 +448,242 @@ async function scrapehivetoonsChapterImages(chapterUrl) {
     return [];
   }}
 
+async function scrapebeginning(seriesUrl){
+  console.log(`Using beginning series scraper for: ${seriesUrl}`);
+  try {
+    const { data } = await axios.get(seriesUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    const $ = cheerio.load(data);
+
+    const title = $('h1').text().trim();
+    const cover = $('.summary_image img.effect-fade').attr('data-src');
+    
+    const chaptersList = [];
+    // Find all list items in the chapter list container
+    $('ul.kt-svg-icon-list li').each((_, element) => {
+      const linkTag = $(element).find('a');
+      const dateTag = $(element).find('.chapter-release-date');
+      
+      chaptersList.push({
+        url: linkTag.attr('href'),
+        number: linkTag.text().replace('Chapter', '').trim(),
+        date: dateTag.text().trim(),
+      });
+    });
+
+    // This site lists newest first, so we reverse it to get chronological order
+    chaptersList.reverse();
+    
+    return { title, cover, chapters: chaptersList };
+  } catch (error) {
+    console.error(`Error scraping Beginning series: ${error.message}`);
+    return null;
+  }
+}
+
+async function scrapebeginningimage(chapterUrl) {
+  console.log(`Using Beginning chapter scraper for: ${chapterUrl}`);
+  try {
+    const { data } = await axios.get(chapterUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    const $ = cheerio.load(data);
+
+    const imageUrls = [];
+    
+    // Find all images inside the main reading container with the ID #readerarea
+    $('div.kadence-blocks-gallery-intrinsic img').each((_, element) => {
+      const imageUrl = $(element).attr('data-light-image');
+      if (imageUrl) {
+        imageUrls.push(imageUrl.trim());
+      }
+    });
+
+    if (imageUrls.length === 0) {
+        console.log("No images found with the primary selector. Trying fallback...");
+        // Fallback for pages that might use a script to store image data
+        const scriptContent = $('script:contains("ts_reader.run")').html();
+        if (scriptContent) {
+            const match = scriptContent.match(/"images":(\[".*?"\])/);
+            if (match && match[1]) {
+                const parsedUrls = JSON.parse(match[1]);
+                imageUrls.push(...parsedUrls);
+            }
+        }
+    }
+
+    if(imageUrls.length === 0){
+        throw new Error("Could not find any images on the page.");
+    }
+    
+    console.log(`Found ${imageUrls.length} images.`);
+    return imageUrls;
+  } catch (error) {
+    console.error(`Error scraping manhuaus chapter: ${error.message}`);
+    return [];
+  }
+}
+
+
+async function scraperaven(seriesUrl){
+  console.log(`Using raven series scraper for: ${seriesUrl}`);
+  try {
+    const { data } = await axios.get(seriesUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    const $ = cheerio.load(data);
+
+    const title = $('h1').text().trim();
+    const cover = $('.thumb img.wp-post-image').attr('src');
+    
+    const chaptersList = [];
+    // Find all list items in the chapter list container
+    $('ul li div.eph-num').each((_, element) => {
+      const linkTag = $(element).find('a');
+      const num = $(element).find('.chapternum');
+      const dateTag = $(element).find('.chapterdate');
+      
+      chaptersList.push({
+        url: linkTag.attr('href'),
+        number: num.text().replace('Chapter', '').trim(),
+        date: dateTag.text().trim(),
+      });
+    });
+
+    // This site lists newest first, so we reverse it to get chronological order
+    chaptersList.reverse();
+    
+    return { title, cover, chapters: chaptersList };
+  } catch (error) {
+    console.error(`Error scraping raver series: ${error.message}`);
+    return null;
+  }
+}
+
+async function scraperavenimage(chapterUrl) {
+  console.log(`Using raven chapter scraper for: ${chapterUrl}`);
+  try {
+    const { data } = await axios.get(chapterUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    const $ = cheerio.load(data);
+
+    const imageUrls = [];
+    
+    // Find all images inside the main reading container with the ID #readerarea
+    $('div.readerarea img').each((_, element) => {
+      const imageUrl = $(element).attr('src');
+      if (imageUrl) {
+        imageUrls.push(imageUrl.trim());
+      }
+    });
+
+    if (imageUrls.length === 0) {
+        console.log("No images found with the primary selector. Trying fallback...");
+        // Fallback for pages that might use a script to store image data
+        const scriptContent = $('script:contains("ts_reader.run")').html();
+        if (scriptContent) {
+            const match = scriptContent.match(/"images":(\[".*?"\])/);
+            if (match && match[1]) {
+                const parsedUrls = JSON.parse(match[1]);
+                imageUrls.push(...parsedUrls);
+            }
+        }
+    }
+
+    if(imageUrls.length === 0){
+        throw new Error("Could not find any images on the page.");
+    }
+    
+    console.log(`Found ${imageUrls.length} images.`);
+    return imageUrls;
+  } catch (error) {
+    console.error(`Error scraping manhuaus chapter: ${error.message}`);
+    return [];
+  }
+}
+
+async function scrapethunder(seriesUrl){
+  console.log(`Using thunder series scraper for: ${seriesUrl}`);
+  try {
+    const { data } = await axios.get(seriesUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    const $ = cheerio.load(data);
+
+    const title = $('h1').text().trim();
+    const cover = $('.thumb img.wp-post-image').attr('src');
+    
+    const chaptersList = [];
+    // Find all list items in the chapter list container
+    $('div.eplister ul li').each((_, element) => {
+      const linkTag = $(element).find('a');
+      const num = $(element).find('.chapternum');
+      const dateTag = $(element).find('.chapterdate');
+      
+      chaptersList.push({
+        url: linkTag.attr('href'),
+        number: num.text().replace('Chapter', '').trim(),
+        date: dateTag.text().trim(),
+      });
+    });
+
+    // This site lists newest first, so we reverse it to get chronological order
+    chaptersList.reverse();
+    
+    return { title, cover, chapters: chaptersList };
+  } catch (error) {
+    console.error(`Error scraping thunder series: ${error.message}`);
+    return null;
+  }
+}
+
+async function scrapethunderimage(chapterUrl) {
+  console.log(`Using thunder chapter scraper for: ${chapterUrl}`);
+  try {
+    const { data } = await axios.get(chapterUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    const $ = cheerio.load(data);
+
+    const imageUrls = [];
+    
+    // Find all images inside the main reading container with the ID #readerarea
+    $('div.readerarea img.ts-main-image').each((_, element) => {
+      const imageUrl = $(element).attr('src');
+      if (imageUrl) {
+        imageUrls.push(imageUrl.trim());
+      }
+    });
+
+    if (imageUrls.length === 0) {
+        console.log("No images found with the primary selector. Trying fallback...");
+        // Fallback for pages that might use a script to store image data
+        const scriptContent = $('script:contains("ts_reader.run")').html();
+        if (scriptContent) {
+            const match = scriptContent.match(/"images":(\[".*?"\])/);
+            if (match && match[1]) {
+                const parsedUrls = JSON.parse(match[1]);
+                imageUrls.push(...parsedUrls);
+            }
+        }
+    }
+
+    if(imageUrls.length === 0){
+        throw new Error("Could not find any images on the page.");
+    }
+    
+    console.log(`Found ${imageUrls.length} images.`);
+    return imageUrls;
+  } catch (error) {
+    console.error(`Error scraping thunder chapter: ${error.message}`);
+    return [];
+  }
+}
+
+
+
 /**
  * Checks the URL and calls the correct site-specific scraper for a SERIES page.
  * @param {string} url The URL of the series to scrape.
@@ -461,8 +697,14 @@ async function scrapeSeriesPage(url) {
     return await scrapeKingofshojoSeries(url);}
     else if (url.includes('hivetoons.org')) {
     return await scrapehive(url);}
-    else if (url.includes('manhuaplus.com')) {
-    return await scrapemanhuaplus(url);}
+    else if (url.includes('manhuaus.com')) {
+    return await scrapemanhuaus(url);}
+    else if (url.includes('beginningaftertheend')) {
+    return await scrapebeginning(url);}
+    else if (url.includes('ravenscans.com')) {
+    return await scraperaven(url);}
+    else if (url.includes('thunderscans.com')) {
+    return await scrapethunder(url);}
    else {
     throw new Error("Unsupported website for series scraping.");
   }
@@ -479,10 +721,16 @@ async function scrapeChapterImages(url) {
     return await scrapeArcaneChapterImages(url);
   }else if (url.includes('kingofshojo.com')) {
     return await scrapeKingofshojoChapterImages(url);}
-    else if (url.includes('manhuaplus.com')) {
-    return await scrapemanhuaplusChapterImages(url);}  
+    else if (url.includes('manhuaus.com')) {
+    return await scrapemanhuausChapterImages(url);}  
     else if (url.includes('hivetoons.org')) {
     return await scrapehivetoonsChapterImages(url);}
+    else if (url.includes('beginningaftertheend')) {
+    return await scrapebeginningimage(url);}
+    else if (url.includes('ravenscans.com')) {
+    return await scraperavenimage(url);}
+    else if (url.includes('thunderscans.com')) {
+    return await scrapethunderimage(url);}
   else {
     throw new Error("Unsupported website for chapter scraping.");
   }
